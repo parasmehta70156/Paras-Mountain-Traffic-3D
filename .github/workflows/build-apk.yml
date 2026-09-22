@@ -28,7 +28,7 @@ jobs:
 
       - name: Install Android packages
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platform-tools" "build-tools;35.0.0" "platforms;android-35" "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
           yes | sdkmanager --licenses >/dev/null || true
 
       - name: Download Godot 4.5.2
