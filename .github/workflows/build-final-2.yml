@@ -35,8 +35,54 @@ jobs:
           cat > ~/.config/godot/editor_settings-4.tres <<EOF
           [gd_resource type="EditorSettings" format=3]
           [resource]
-          export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17"
+          export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64"
           export/android/sdk_path = "/usr/local/lib/android/sdk"
+          EOF
+      - name: Fix GDScript type inference
+        run: |
+          sed -i 's/var rail_x := x + side \* 6.0/var rail_x: float = x + side * 6.0/' dangerous_game.gd
+          sed -i 's/var lane_offset := LANES\[traffic_lane\[i\]\]/var lane_offset: float = LANES[traffic_lane[i]]/' dangerous_game.gd
+      - name: Create Android export preset
+        run: |
+          cat > export_presets.cfg <<'EOF'
+          [preset.0]
+          name="Android"
+          platform="Android"
+          runnable=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          encrypt_pck=false
+          encrypt_directory=false
+          script_export_mode=1
+          export_path=""
+
+          [preset.0.options]
+          custom_template/debug=""
+          custom_template/release=""
+          gradle_build/use_gradle_build=false
+          package/unique_name="com.parasmehta.mountaintraffic3d"
+          package/name="Paras Mountain Traffic 3D"
+          package/signed=true
+          package/app_category=0
+          package/retain_data_on_uninstall=false
+          package/exclude_from_recents=false
+          package/show_in_android_launcher=true
+          version/code=1
+          version/name="1.0"
+          screen/immersive_mode=true
+          screen/orientation=1
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          architecture/armeabi-v7a=false
+          architecture/arm64-v8a=true
+          architecture/x86=false
+          architecture/x86_64=false
+          permissions/internet=false
           EOF
       - name: Build APK
         run: |
