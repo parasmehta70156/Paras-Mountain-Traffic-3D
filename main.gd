@@ -1,8 +1,5 @@
 extends Node3D
 
-# Paras Mountain Traffic 3D - fully offline procedural 3D gameplay.
-# No network, API, downloaded assets, or external runtime dependency.
-
 var player: Node3D
 var player_x := 0.0
 var speed := 16.0
@@ -14,7 +11,6 @@ var crashed := false
 var left_pressed := false
 var right_pressed := false
 var traffic: Array[Node3D] = []
-var traffic_z: Array[float] = []
 var traffic_lane: Array[int] = []
 var rng := RandomNumberGenerator.new()
 var score_label: Label
@@ -25,7 +21,6 @@ var steer_right: Button
 var brake_button: Button
 var boost_button: Button
 
-const ROAD_WIDTH := 12.0
 const LANES := [-3.6, 0.0, 3.6]
 const TRAFFIC_COUNT := 8
 const FAR_Z := -150.0
@@ -99,7 +94,6 @@ func _setup_world() -> void:
     e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     env.environment = e
     add_child(env)
-
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -28, 0)
     sun.light_color = Color("#fff2d0")
@@ -107,7 +101,6 @@ func _setup_world() -> void:
     sun.shadow_enabled = true
     sun.directional_shadow_max_distance = 80.0
     add_child(sun)
-
     var camera := Camera3D.new()
     camera.position = Vector3(0, 4.4, 10.5)
     camera.look_at(Vector3(0, 1.4, -24), Vector3.UP)
@@ -123,17 +116,14 @@ func _build_environment() -> void:
     var snow := mat(Color("#f4f8fb"), 0.0, 0.65)
     var pine := mat(Color("#14532d"), 0.0, 0.95)
     var trunk := mat(Color("#5d4037"), 0.0, 1.0)
-
     box(self, Vector3(90, 0.5, 260), Vector3(0, -0.7, -65), grass)
-    box(self, Vector3(ROAD_WIDTH, 0.18, 230), Vector3(0, -0.38, -70), road)
-
+    box(self, Vector3(12, 0.18, 230), Vector3(0, -0.38, -70), road)
     for z in range(-180, 31, 12):
         box(self, Vector3(0.22, 0.04, 5.2), Vector3(0, -0.26, z), line)
         box(self, Vector3(0.18, 0.04, 5.2), Vector3(-3.6, -0.25, z), line)
         box(self, Vector3(0.18, 0.04, 5.2), Vector3(3.6, -0.25, z), line)
         box(self, Vector3(0.28, 0.65, 11.5), Vector3(-6.25, -0.05, z), barrier)
         box(self, Vector3(0.28, 0.65, 11.5), Vector3(6.25, -0.05, z), barrier)
-
     for i in range(18):
         var z := -8.0 - float(i) * 10.0
         var side := -1.0 if i % 2 == 0 else 1.0
@@ -142,7 +132,6 @@ func _build_environment() -> void:
         var tree := sphere(self, 2.0, Vector3(x, 2.2, z), pine)
         tree.scale = Vector3(1.0, 1.35, 1.0)
         sphere(self, 1.35, Vector3(x, 4.0, z), pine)
-
     for i in range(10):
         var z := -15.0 - float(i) * 16.0
         var side := -1.0 if i % 2 == 0 else 1.0
@@ -150,8 +139,6 @@ func _build_environment() -> void:
         var mountain := cyl(self, 10.0 + float(i % 3) * 2.0, 22.0, Vector3(x, 8.0, z), rock)
         mountain.scale = Vector3(1.4, 1.0, 1.0)
         cyl(self, 5.0, 9.0, Vector3(x, 19.0, z), snow)
-
-    # Roadside warning signs.
     for i in range(7):
         var z := -12.0 - float(i) * 25.0
         var side := -1.0 if i % 2 == 0 else 1.0
@@ -169,6 +156,7 @@ func _build_player() -> void:
     var chrome := mat(Color("#bfc7cc"), 0.85, 0.22)
     var red := mat(Color("#ff3030"), 0.15, 0.3)
     var white := mat(Color("#fff7d6"), 0.05, 0.25)
+    var tire := mat(Color("#121212"), 0.0, 0.95)
     box(player, Vector3(2.5, 0.65, 4.0), Vector3(0, 0.15, 0), body)
     box(player, Vector3(2.0, 0.72, 1.75), Vector3(0, 0.72, -0.15), body)
     box(player, Vector3(1.65, 0.52, 1.0), Vector3(0, 0.82, -0.35), glass)
@@ -178,20 +166,19 @@ func _build_player() -> void:
     box(player, Vector3(0.6, 0.18, 0.15), Vector3(-0.75, 0.42, 2.03), white)
     box(player, Vector3(0.6, 0.18, 0.15), Vector3(0.75, 0.42, 2.03), white)
     for x in [-1.15, 1.15]:
-        cyl(player, 0.38, 0.28, Vector3(x, -0.15, -1.25), ColorMaterial.new(), Vector3(PI/2,0,0)).material_override = ColorMaterial.new()
-        var w := player.get_child(player.get_child_count()-1) as MeshInstance3D
-        w.material_override = mat(Color("#121212"), 0.0, 0.95)
-        cyl(player, 0.38, 0.28, Vector3(x, -0.15, 1.25), mat(Color("#121212"),0,0.95), Vector3(PI/2,0,0))
+        cyl(player, 0.38, 0.28, Vector3(x, -0.15, -1.25), tire, Vector3(PI/2,0,0))
+        cyl(player, 0.38, 0.28, Vector3(x, -0.15, 1.25), tire, Vector3(PI/2,0,0))
 
 func _make_traffic_car(parent: Node3D, color: Color) -> void:
     var body := mat(color, 0.35, 0.32)
     var glass := mat(Color("#1f4560"), 0.2, 0.2)
+    var tire := mat(Color("#111111"),0,1)
     box(parent, Vector3(2.25, 0.58, 3.2), Vector3(0, 0.2, 0), body)
     box(parent, Vector3(1.7, 0.6, 1.55), Vector3(0, 0.7, -0.1), body)
     box(parent, Vector3(1.45, 0.42, 0.95), Vector3(0, 0.78, -0.25), glass)
     for x in [-0.9,0.9]:
-        cyl(parent, 0.34, 0.24, Vector3(x,-0.16,-1.0), mat(Color("#111111"),0,1), Vector3(PI/2,0,0))
-        cyl(parent, 0.34, 0.24, Vector3(x,-0.16,1.0), mat(Color("#111111"),0,1), Vector3(PI/2,0,0))
+        cyl(parent, 0.34, 0.24, Vector3(x,-0.16,-1.0), tire, Vector3(PI/2,0,0))
+        cyl(parent, 0.34, 0.24, Vector3(x,-0.16,1.0), tire, Vector3(PI/2,0,0))
 
 func _make_truck(parent: Node3D) -> void:
     var cab := mat(Color("#e85d04"),0.2,0.4)
@@ -210,14 +197,12 @@ func _build_traffic() -> void:
         v.name = "Traffic_%02d" % i
         add_child(v)
         var lane := i % 3
-        var z := FAR_Z - float(i) * 20.0
-        v.position = Vector3(LANES[lane], 0.55, z)
+        v.position = Vector3(LANES[lane], 0.55, FAR_Z - float(i) * 20.0)
         if i % 4 == 0:
             _make_truck(v)
         else:
             _make_traffic_car(v, [Color("#d62828"),Color("#f1faee"),Color("#3a86ff"),Color("#ffbe0b")][i % 4])
         traffic.append(v)
-        traffic_z.append(z)
         traffic_lane.append(lane)
 
 func _build_ui() -> void:
@@ -237,7 +222,6 @@ func _build_ui() -> void:
     message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     message_label.add_theme_font_size_override("font_size", 38)
     layer.add_child(message_label)
-
     steer_left = _button(layer, "◀", Vector2(25, 585), Vector2(145, 105))
     steer_right = _button(layer, "▶", Vector2(190, 585), Vector2(145, 105))
     brake_button = _button(layer, "BRAKE", Vector2(1010, 590), Vector2(120, 90))
@@ -291,18 +275,15 @@ func _process(delta: float) -> void:
     speed = lerp(speed, target_speed, delta * 2.5)
     distance += speed * delta
     score = int(distance * 2.0)
-
     for i in traffic.size():
         var v := traffic[i]
         v.position.z += speed * delta
-        v.position.x = lerp(v.position.x, LANES[traffic_lane[i]], delta * 2.0)
         if v.position.z > RESET_Z:
             traffic_lane[i] = rng.randi_range(0,2)
             v.position.x = LANES[traffic_lane[i]]
             v.position.z = FAR_Z - rng.randf_range(0,65)
         if abs(v.position.z - player.position.z) < 2.6 and abs(v.position.x - player.position.x) < 1.7:
             _crash()
-
     score_label.text = "SCORE  %06d" % score
     speed_label.text = "SPEED  %03d km/h" % int(speed * 5.0)
 
