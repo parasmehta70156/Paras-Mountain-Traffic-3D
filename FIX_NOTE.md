@@ -1,0 +1,1 @@
+Final stabilization pass: mobile-first offline build, safe Android SDK setup, and lightweight runtime target. Verify APK before release.
