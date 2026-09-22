@@ -1,0 +1,50 @@
+name: Final APK Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Install Godot
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_linux.x86_64.zip
+          unzip -q Godot_v4.5.2-stable_linux.x86_64.zip
+          sudo mv Godot_v4.5.2-stable_linux.x86_64 /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+      - name: Install export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.5.2.stable
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_export_templates.tpz -O templates.tpz
+          unzip -q templates.tpz -d /tmp/godot_templates
+          cp -r /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/4.5.2.stable/
+      - name: Configure Android
+        run: |
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17"
+          export/android/sdk_path = "/usr/local/lib/android/sdk"
+          EOF
+      - name: Build APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --editor --quit
+          godot --headless --path . --export-debug "Android" build/Paras-Mountain-Traffic-3D.apk
+          test -s build/Paras-Mountain-Traffic-3D.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Paras-Mountain-Traffic-3D-FINAL-APK
+          path: build/Paras-Mountain-Traffic-3D.apk
