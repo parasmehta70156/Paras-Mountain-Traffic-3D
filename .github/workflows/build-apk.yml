@@ -53,12 +53,11 @@ jobs:
       - name: Create debug signing key
         run: |
           keytool -genkeypair -v -keystore paras-debug.keystore -alias paras -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Paras Mountain Traffic 3D, O=Paras"
+          sed -i "s#keystore/debug=\"\"#keystore/debug=\"$GITHUB_WORKSPACE/paras-debug.keystore\"#" export_presets.cfg
+          sed -i 's#keystore/debug_user=""#keystore/debug_user="paras"#' export_presets.cfg
+          sed -i 's#keystore/debug_password=""#keystore/debug_password="android"#' export_presets.cfg
 
       - name: Export signed APK
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/paras-debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: paras
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           ./godot --headless --path . --editor --quit
           ./godot --headless --path . --export-debug "Android" Paras-Mountain-Traffic-3D.apk
