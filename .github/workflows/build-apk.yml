@@ -50,18 +50,21 @@ jobs:
           mkdir -p "$HOME/.config/godot"
           printf '%s\n' '[gd_resource type="EditorSettings" format=3]' '[resource]' "export/android/android_sdk_path = \"$ANDROID_HOME\"" "export/android/java_sdk_path = \"$JAVA_HOME\"" > "$HOME/.config/godot/editor_settings-4.tres"
 
-      - name: Export unsigned APK
-        run: |
-          ./godot --headless --path . --editor --quit
-          ./godot --headless --path . --export-debug "Android" Paras-Mountain-Traffic-3D-unsigned.apk
-
-      - name: Create signing key
+      - name: Create debug signing key
         run: |
           keytool -genkeypair -v -keystore paras-debug.keystore -alias paras -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Paras Mountain Traffic 3D, O=Paras"
 
-      - name: Sign APK
+      - name: Export signed APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/paras-debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: paras
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign --ks paras-debug.keystore --ks-pass pass:android --key-pass pass:android --out Paras-Mountain-Traffic-3D.apk Paras-Mountain-Traffic-3D-unsigned.apk
+          ./godot --headless --path . --editor --quit
+          ./godot --headless --path . --export-debug "Android" Paras-Mountain-Traffic-3D.apk
+
+      - name: Verify APK
+        run: |
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose Paras-Mountain-Traffic-3D.apk
 
       - name: Upload APK
