@@ -7,9 +7,9 @@ var game
 func _ready():
     await get_tree().process_frame
     game = get_parent()
-    _build_visual_menu()
+    _build_safe_menu()
 
-func _build_visual_menu():
+func _build_safe_menu():
     overlay = CanvasLayer.new()
     overlay.layer = 50
     add_child(overlay)
@@ -18,32 +18,48 @@ func _build_visual_menu():
     root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     overlay.add_child(root)
 
-    var bg := TextureRect.new()
-    bg.texture = load("res://art/menu_reference.svg")
-    bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    var bg := ColorRect.new()
+    bg.color = Color(0.035, 0.055, 0.075, 1.0)
     bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     root.add_child(bg)
 
-    _hotspot(Vector2(25,325), Vector2(300,75), func():
+    var title := Label.new()
+    title.text = "PARAS MOUNTAIN TRAFFIC 3D"
+    title.position = Vector2(45, 55)
+    title.add_theme_font_size_override("font_size", 42)
+    title.add_theme_color_override("font_color", Color(1, 1, 1))
+    root.add_child(title)
+
+    var subtitle := Label.new()
+    subtitle.text = "DANGEROUS ROADS • REAL TRAFFIC • OFFLINE"
+    subtitle.position = Vector2(48, 110)
+    subtitle.add_theme_font_size_override("font_size", 20)
+    subtitle.add_theme_color_override("font_color", Color(0.45, 0.9, 0.35))
+    root.add_child(subtitle)
+
+    _button("PLAY GAME", Vector2(50, 230), Vector2(310, 75), func():
         overlay.visible = false
         game._start_game()
     )
-    _hotspot(Vector2(25,385), Vector2(300,75), func(): game._cycle_vehicle())
-    _hotspot(Vector2(25,440), Vector2(300,75), func():
+    _button("CHANGE VEHICLE", Vector2(50, 320), Vector2(310, 75), func(): game._cycle_vehicle())
+    _button("DAY / NIGHT", Vector2(50, 410), Vector2(310, 75), func():
         game.night = not game.night
         game._set_lighting()
     )
-    _hotspot(Vector2(1030,90), Vector2(145,160), func(): game.select_vehicle(0))
-    _hotspot(Vector2(1190,90), Vector2(145,160), func(): game.select_vehicle(1))
-    _hotspot(Vector2(1350,90), Vector2(140,160), func(): game.select_vehicle(2))
 
-func _hotspot(pos: Vector2, size: Vector2, callback: Callable):
+    var info := Label.new()
+    info.text = "SUV • FORTUNER • BIKE\n\nSteer: A / D\nBrake: S\nBoost: SPACE"
+    info.position = Vector2(520, 245)
+    info.add_theme_font_size_override("font_size", 24)
+    info.add_theme_color_override("font_color", Color(0.88, 0.9, 0.92))
+    root.add_child(info)
+
+func _button(text: String, pos: Vector2, size: Vector2, callback: Callable):
     var b := Button.new()
+    b.text = text
     b.position = pos
     b.size = size
-    b.flat = true
-    b.modulate = Color(1,1,1,0)
+    b.add_theme_font_size_override("font_size", 24)
     b.focus_mode = Control.FOCUS_NONE
     b.pressed.connect(callback)
     root.add_child(b)
