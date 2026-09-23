@@ -37,12 +37,11 @@ jobs:
         run: |
           mkdir -p ~/.config/godot
           printf '[gd_resource format=3]\n\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "%s"\n' "$JAVA_HOME" "$ANDROID_HOME" > ~/.config/godot/editor_settings-4.tres
-      - name: Export signed APK
+      - name: Export APK
         run: |
           mkdir -p build
           ./Godot_v4.5.2-stable_linux.x86_64 --headless --path . --export-debug Android build/Paras-Mountain-Traffic-3D.apk
-      - name: Verify APK
-        run: test -s build/Paras-Mountain-Traffic-3D.apk
+          test -s build/Paras-Mountain-Traffic-3D.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
