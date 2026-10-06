@@ -1,0 +1,38 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Android APK with Godot
+        uses: barichello/godot-ci@v4.5.1
+        with:
+          godot_version: 4.5.1
+          export_templates: true
+
+      - name: Import project resources
+        run: godot --headless --editor --path . --quit
+
+      - name: Export APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/ExtremeRoadKings3D.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ExtremeRoadKings3D-Android-APK
+          path: build/ExtremeRoadKings3D.apk
+          if-no-files-found: error
+          retention-days: 14
