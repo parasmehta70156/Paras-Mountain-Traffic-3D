@@ -11,15 +11,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.5.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Build Android APK with Godot
-        uses: barichello/godot-ci@v4.5.1
-        with:
-          godot_version: 4.5.1
-          export_templates: true
 
       - name: Import project resources
         run: godot --headless --editor --path . --quit
