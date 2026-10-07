@@ -1,48 +1,72 @@
-name: Final APK Build
+name: Build Android test APK
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GODOT_VERSION: "4.4.1"
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-      - uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Install Godot
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Install Android export packages
         run: |
-          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_linux.x86_64.zip
-          unzip -q Godot_v4.5.2-stable_linux.x86_64.zip
-          sudo mv Godot_v4.5.2-stable_linux.x86_64 /usr/local/bin/godot
-          sudo chmod +x /usr/local/bin/godot
-      - name: Install export templates
+          sdkmanager --sdk_root="$ANDROID_HOME" \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "cmdline-tools;latest" \
+            "cmake;3.10.2.4988404" \
+            "ndk;23.2.8568313"
+
+      - name: Install Godot and matching export templates
         run: |
-          mkdir -p ~/.local/share/godot/export_templates/4.5.2.stable
-          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_export_templates.tpz -O templates.tpz
-          unzip -q templates.tpz -d /tmp/godot_templates
-          cp -r /tmp/godot_templates/templates/* ~/.local/share/godot/export_templates/4.5.2.stable/
-      - name: Configure Android
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p "$RUNNER_TEMP/godot" "$RUNNER_TEMP/templates"
+          curl -fsSL --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          curl -fsSL --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          sudo mv "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/templates"
+          template_dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$template_dir"
+          cp -a "$RUNNER_TEMP/templates/templates/." "$template_dir/"
+
+      - name: Configure Godot Android paths
         run: |
-          mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-4.tres <<EOF
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
           [resource]
-          export/android/java_sdk_path = "/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.20-1/x64"
-          export/android/sdk_path = "/usr/local/lib/android/sdk"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/sdk_path = "$ANDROID_HOME"
           EOF
-      - name: Fix GDScript type inference
+
+      - name: Fix known GDScript inference issues
         run: |
           sed -i 's/var rail_x := x + side \* 6.0/var rail_x: float = x + side * 6.0/' dangerous_game.gd
           sed -i 's/var lane_offset := LANES\[traffic_lane\[i\]\]/var lane_offset: float = LANES[traffic_lane[i]]/' dangerous_game.gd
-      - name: Create Android export preset
+
+      - name: Configure Android export preset
         run: |
           cat > export_presets.cfg <<'EOF'
           [preset.0]
@@ -59,7 +83,6 @@ jobs:
           encrypt_pck=false
           encrypt_directory=false
           script_export_mode=1
-          export_path=""
 
           [preset.0.options]
           custom_template/debug=""
@@ -84,13 +107,35 @@ jobs:
           architecture/x86_64=false
           permissions/internet=false
           EOF
-      - name: Build APK
+
+      - name: Create temporary debug signing key
+        run: |
+          set +x
+          umask 077
+          debug_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$debug_password"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=$debug_password" >> "$GITHUB_ENV"
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/android-debug.keystore" \
+            -storepass "$debug_password" \
+            -alias androiddebugkey \
+            -keypass "$debug_password" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/android-debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
+
+      - name: Import and parse project
+        run: godot --headless --path . --editor --quit
+
+      - name: Export installable debug APK
         run: |
           mkdir -p build
-          godot --headless --path . --editor --quit
-          godot --headless --path . --export-debug "Android" build/Paras-Mountain-Traffic-3D.apk
-          test -s build/Paras-Mountain-Traffic-3D.apk
+          godot --headless --path . --export-debug "Android" build/Paras-Mountain-Traffic-3D-debug.apk
+          test -s build/Paras-Mountain-Traffic-3D-debug.apk
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Paras-Mountain-Traffic-3D-FINAL-APK
-          path: build/Paras-Mountain-Traffic-3D.apk
+          name: Paras-Mountain-Traffic-3D-debug-APK
+          path: build/Paras-Mountain-Traffic-3D-debug.apk
+          if-no-files-found: error
