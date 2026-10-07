@@ -25,7 +25,10 @@ func _ready() -> void:
 	set_process(true)
 
 func load_best() -> int:
-	return int(ConfigFile.new().get_value("scores", "best", 0)) if FileAccess.file_exists("user://scores.cfg") else 0
+	var cfg := ConfigFile.new()
+	if cfg.load("user://scores.cfg") == OK:
+		return int(cfg.get_value("scores", "best", 0))
+	return 0
 
 func save_best() -> void:
 	var cfg := ConfigFile.new()
@@ -130,7 +133,7 @@ func rounded_rect(rect: Rect2, radius: float, color: Color) -> void:
 
 func draw_car(x: float, y: float, color: Color, player: bool) -> void:
 	# Tires and soft cartoon shadow
-	draw_rounded_rect(Rect2(x - 31, y - 43, 62, 88), 12, Color(0.08, 0.12, 0.17, 0.38))
+	rounded_rect(Rect2(x - 31, y - 43, 62, 88), 12, Color(0.08, 0.12, 0.17, 0.38))
 	rounded_rect(Rect2(x - 32, y - 42, 64, 84), 12, Color("#20252b"))
 	rounded_rect(Rect2(x - 27, y - 47, 54, 94), 13, color)
 	# Windscreen, roof and front glass
