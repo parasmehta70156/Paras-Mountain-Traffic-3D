@@ -161,9 +161,9 @@ func _draw() -> void:
 	draw_rect(Rect2(66, 0, 9, H), Color("#f8f0ce"))
 	draw_rect(Rect2(405, 0, 9, H), Color("#f8f0ce"))
 	for yy_i in range(9):
-		var yy := fmod(float(yy_i * 120) + road_offset, H)
-		draw_rect(Rect2(179, yy, 6, 55), Color("#d8dbe2"))
-		draw_rect(Rect2(295, yy, 6, 55), Color("#d8dbe2"))
+		var lane_mark_y := fmod(float(yy_i * 120) + road_offset, H)
+		draw_rect(Rect2(179, lane_mark_y, 6, 55), Color("#d8dbe2"))
+		draw_rect(Rect2(295, lane_mark_y, 6, 55), Color("#d8dbe2"))
 	# roadside flowers / bushes
 	for i in range(8):
 		var yy2 := fmod(float(i * 137) + road_offset * 0.8, H)
