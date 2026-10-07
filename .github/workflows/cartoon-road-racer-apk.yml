@@ -19,20 +19,39 @@ jobs:
     steps:
       - name: Checkout game source
         uses: actions/checkout@v4
-      - name: Check Godot version and Android export templates
+
+      - name: Install Java and Android export templates
+        shell: bash
         run: |
+          set -eux
+          apt-get update
+          apt-get install -y openjdk-17-jdk unzip curl fontconfig
+          export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(which javac)")")")"
+          echo "JAVA_HOME=$JAVA_HOME"
           godot --version
-          mkdir -p ~/.config/godot
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          curl -fL --retry 3 -o /tmp/godot-templates.tpz https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          unzip -o /tmp/godot-templates.tpz -d /tmp/godot-templates
+          cp /tmp/godot-templates/templates/android_debug.apk "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_debug.apk"
+          cp /tmp/godot-templates/templates/android_release.apk "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_release.apk"
+          mkdir -p "$HOME/.config/godot"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "/opt/android-sdk"\n' "$JAVA_HOME" > "$HOME/.config/godot/editor_settings-4.tres"
+          find / -type d -name 'platform-tools' 2>/dev/null | head -10
+          ls -la /opt/android-sdk || true
           mkdir -p build
+
       - name: Import game
         run: godot --headless --editor --path CartoonRoadRacer --quit
+
       - name: Export Android APK
         run: godot --headless --path CartoonRoadRacer --export-debug "Android" build/CartoonRoadRacer.apk
+
       - name: Verify APK exists and is non-empty
         run: |
           test -s build/CartoonRoadRacer.apk
           file build/CartoonRoadRacer.apk
           ls -lh build/CartoonRoadRacer.apk
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
