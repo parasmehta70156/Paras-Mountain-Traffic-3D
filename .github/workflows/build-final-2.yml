@@ -29,12 +29,8 @@ jobs:
       - name: Install Android export packages
         run: |
           sdkmanager --sdk_root="$ANDROID_HOME" \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "cmdline-tools;latest" \
-            "cmake;3.10.2.4988404" \
-            "ndk;23.2.8568313"
+            "platform-tools" "platforms;android-34" "build-tools;34.0.0" \
+            "cmdline-tools;latest" "cmake;3.10.2.4988404" "ndk;23.2.8568313"
 
       - name: Install Godot and matching export templates
         run: |
@@ -60,11 +56,6 @@ jobs:
           export/android/java_sdk_path = "$JAVA_HOME"
           export/android/sdk_path = "$ANDROID_HOME"
           EOF
-
-      - name: Fix known GDScript inference issues
-        run: |
-          sed -i 's/var rail_x := x + side \* 6.0/var rail_x: float = x + side * 6.0/' dangerous_game.gd
-          sed -i 's/var lane_offset := LANES\[traffic_lane\[i\]\]/var lane_offset: float = LANES[traffic_lane[i]]/' dangerous_game.gd
 
       - name: Configure Android export preset
         run: |
@@ -108,22 +99,24 @@ jobs:
           permissions/internet=false
           EOF
 
-      - name: Create temporary debug signing key
+      - name: Create temporary debug signing key and configure preset
         run: |
           set +x
           umask 077
           debug_password="$(openssl rand -hex 32)"
           echo "::add-mask::$debug_password"
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=$debug_password" >> "$GITHUB_ENV"
           keytool -genkeypair -noprompt \
             -keystore "$RUNNER_TEMP/android-debug.keystore" \
-            -storepass "$debug_password" \
-            -alias androiddebugkey \
-            -keypass "$debug_password" \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/android-debug.keystore" >> "$GITHUB_ENV"
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
+            -storepass "$debug_password" -alias androiddebugkey \
+            -keypass "$debug_password" -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          cat >> export_presets.cfg <<EOF
+
+          [preset.0.options]
+          package/keystore/debug="$RUNNER_TEMP/android-debug.keystore"
+          package/keystore/debug_user="androiddebugkey"
+          package/keystore/debug_password="$debug_password"
+          EOF
 
       - name: Import and parse project
         run: godot --headless --path . --editor --quit
