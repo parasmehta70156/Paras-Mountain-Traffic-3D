@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      GODOT_VERSION: "4.4.1"
+      GODOT_VERSION: "4.5.2"
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
@@ -62,7 +62,7 @@ jobs:
       - name: Configure Godot Android paths and export preset
         run: |
           mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          cat > "$HOME/.config/godot/editor_settings-4.5.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
           [resource]
           export/android/java_sdk_path = "$JAVA_HOME"
@@ -113,7 +113,7 @@ jobs:
           EOF
 
       - name: Import and parse project
-        run: godot --headless --path . --editor --quit
+        run: godot --headless --path . --editor --quit --verbose
 
       - name: Export installable debug APK
         run: |
