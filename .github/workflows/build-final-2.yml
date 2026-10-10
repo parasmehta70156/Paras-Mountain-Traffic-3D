@@ -47,7 +47,19 @@ jobs:
           mkdir -p "$template_dir"
           cp -a "$RUNNER_TEMP/templates/templates/." "$template_dir/"
 
-      - name: Configure Godot Android paths
+      - name: Create debug signing key
+        run: |
+          umask 077
+          debug_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$debug_password"
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/android-debug.keystore" \
+            -storepass "$debug_password" -alias androiddebugkey \
+            -keypass "$debug_password" -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          echo "DEBUG_KEY_PASSWORD=$debug_password" >> "$GITHUB_ENV"
+
+      - name: Configure Godot Android paths and export preset
         run: |
           mkdir -p "$HOME/.config/godot"
           cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
@@ -57,9 +69,7 @@ jobs:
           export/android/sdk_path = "$ANDROID_HOME"
           EOF
 
-      - name: Configure Android export preset
-        run: |
-          cat > export_presets.cfg <<'EOF'
+          cat > export_presets.cfg <<EOF
           [preset.0]
           name="Android"
           platform="Android"
@@ -82,6 +92,9 @@ jobs:
           package/unique_name="com.parasmehta.mountaintraffic3d"
           package/name="Paras Mountain Traffic 3D"
           package/signed=true
+          package/keystore/debug="$RUNNER_TEMP/android-debug.keystore"
+          package/keystore/debug_user="androiddebugkey"
+          package/keystore/debug_password="$DEBUG_KEY_PASSWORD"
           package/app_category=0
           package/retain_data_on_uninstall=false
           package/exclude_from_recents=false
@@ -99,36 +112,18 @@ jobs:
           permissions/internet=false
           EOF
 
-      - name: Create temporary debug signing key and configure preset
-        run: |
-          set +x
-          umask 077
-          debug_password="$(openssl rand -hex 32)"
-          echo "::add-mask::$debug_password"
-          keytool -genkeypair -noprompt \
-            -keystore "$RUNNER_TEMP/android-debug.keystore" \
-            -storepass "$debug_password" -alias androiddebugkey \
-            -keypass "$debug_password" -keyalg RSA -keysize 2048 \
-            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          cat >> export_presets.cfg <<EOF
-
-          [preset.0.options]
-          package/keystore/debug="$RUNNER_TEMP/android-debug.keystore"
-          package/keystore/debug_user="androiddebugkey"
-          package/keystore/debug_password="$debug_password"
-          EOF
-
       - name: Import and parse project
         run: godot --headless --path . --editor --quit
 
       - name: Export installable debug APK
         run: |
           mkdir -p build
-          godot --headless --path . --export-debug "Android" build/Paras-Mountain-Traffic-3D-debug.apk
-          test -s build/Paras-Mountain-Traffic-3D-debug.apk
+          godot --headless --path . --export-debug "Android" build/ExtremeRoadKings3D.apk --verbose
+          test -s build/ExtremeRoadKings3D.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Paras-Mountain-Traffic-3D-debug-APK
-          path: build/Paras-Mountain-Traffic-3D-debug.apk
+          name: ExtremeRoadKings3D-Android-APK
+          path: build/ExtremeRoadKings3D.apk
           if-no-files-found: error
+          retention-days: 14
