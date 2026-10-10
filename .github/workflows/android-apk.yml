@@ -17,6 +17,55 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Java and system dependencies
+        shell: bash
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends openjdk-17-jdk fontconfig unzip curl
+          echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(command -v java))))" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=/opt/android-sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=/opt/android-sdk" >> "$GITHUB_ENV"
+          find / -name sdkmanager -type f 2>/dev/null | head -10
+
+      - name: Install Godot Android export templates
+        shell: bash
+        run: |
+          mkdir -p /tmp/godot-tpl "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          curl -fL --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz
+          unzip -q /tmp/templates.tpz -d /tmp/godot-tpl
+          find /tmp/godot-tpl -maxdepth 3 -type f | head -30
+          if [ -d /tmp/godot-tpl/templates ]; then
+            cp -a /tmp/godot-tpl/templates/. "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+          else
+            cp -a /tmp/godot-tpl/. "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+          fi
+          chmod -R a+rX "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+
+      - name: Configure Android SDK paths
+        shell: bash
+        run: |
+          SDK_DIR=""
+          for p in /opt/android-sdk /usr/lib/android-sdk /root/android-sdk /android-sdk /opt/android; do
+            if [ -d "$p" ]; then SDK_DIR="$p"; break; fi
+          done
+          if [ -z "$SDK_DIR" ]; then
+            SDK_DIR="$(find / -type d -name 'platform-tools' 2>/dev/null | head -1 | xargs -r dirname)"
+          fi
+          if [ -z "$SDK_DIR" ] || [ ! -d "$SDK_DIR" ]; then
+            echo "Android SDK not found in build image"; exit 1
+          fi
+          echo "Using Android SDK at $SDK_DIR"
+          echo "ANDROID_HOME=$SDK_DIR" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$SDK_DIR"
+          EOF
+          find "$SDK_DIR" -maxdepth 3 -type d | head -40
+
       - name: Import project resources
         run: godot --headless --editor --path . --quit
 
@@ -24,6 +73,7 @@ jobs:
         run: |
           mkdir -p build
           godot --headless --path . --export-debug "Android" build/ExtremeRoadKings3D.apk
+          test -s build/ExtremeRoadKings3D.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
