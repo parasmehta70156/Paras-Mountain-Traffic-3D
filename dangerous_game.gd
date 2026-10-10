@@ -160,7 +160,7 @@ func _build_road() -> void:
         box(road_root, Vector3(0.20, 0.04, SEGMENT_LEN), Vector3(x - 3.55, -0.25, z), edge_mat, angle)
         box(road_root, Vector3(0.20, 0.04, SEGMENT_LEN), Vector3(x + 3.55, -0.25, z), edge_mat, angle)
         for side in [-1.0, 1.0]:
-            var rail_x := x + side * 6.0
+            var rail_x: float = x + side * 6.0
             box(road_root, Vector3(0.25, 0.75, SEGMENT_LEN), Vector3(rail_x, 0.0, z), rail_mat, angle)
             cyl(road_root, 0.10, 0.95, Vector3(rail_x, -0.05, z - 2.7), rail_mat)
         if i % 6 == 2:
@@ -447,7 +447,7 @@ func _physics_process(delta: float) -> void:
     for i in range(traffic.size()):
         var v := traffic[i]
         v.position.z += (speed - traffic_speed[i]) * delta
-        var lane_offset := LANES[traffic_lane[i]]
+        var lane_offset: float = float(LANES[traffic_lane[i]])
         v.position.x = curve_x(v.position.z) + lane_offset
         v.rotation.y = -atan(curve_slope(v.position.z))
         if v.position.z > RESET_Z:
